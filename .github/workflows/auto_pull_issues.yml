@@ -8,7 +8,6 @@ jobs:
   add-to-project:
     runs-on: ubuntu-latest
     # Only run for issues created from task lists
-    if: contains(github.event.issue.body, 'Converted from task list item')
     steps:
       - uses: actions/add-to-project@v0.5.0
         with:
