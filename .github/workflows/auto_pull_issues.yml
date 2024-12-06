@@ -7,9 +7,7 @@ on:
 jobs:
   add-to-project:
     runs-on: ubuntu-latest
-    if: |
-      startsWith(toLowerCase(github.event.issue.title), 'task') || 
-      startsWith(toLowerCase(github.event.issue.title), 'okr')
+    if: matches(github.event.issue.title, '^(task|okr)', 'i')
     steps:
       - uses: actions/add-to-project@v0.5.0
         with:
