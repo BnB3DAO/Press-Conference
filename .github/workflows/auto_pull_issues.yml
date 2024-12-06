@@ -7,7 +7,9 @@ on:
 jobs:
   add-to-project:
     runs-on: ubuntu-latest
-    # Only run for issues created from task lists
+    if: |
+      startsWith(toLowerCase(github.event.issue.title), 'task') || 
+      startsWith(toLowerCase(github.event.issue.title), 'okr')
     steps:
       - uses: actions/add-to-project@v0.5.0
         with:
