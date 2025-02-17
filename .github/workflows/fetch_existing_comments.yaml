@@ -1,0 +1,100 @@
+name: Fetch Existing Issue Comments with AI Summary
+
+on:
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  fetch-existing-comments:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch existing comments
+        id: fetch-comments
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: 48
+        run: |
+          # 获取 issue #48 的所有评论
+          COMMENTS=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ env.ISSUE_NUMBER }}/comments")
+          
+          # 将评论保存到文件中
+          echo "$COMMENTS" > comments.json
+          
+          # 获取 issue 标题和 URL
+          ISSUE=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ env.ISSUE_NUMBER }}")
+          
+          {
+            echo "issue_title<<EOF"
+            echo "$(echo $ISSUE | jq -r '.title')"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          
+          {
+            echo "issue_url<<EOF"
+            echo "$(echo $ISSUE | jq -r '.html_url')"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Process each comment
+        env:
+          OPENAI_API_KEY: ${{ secrets.GLM_AI_TOKEN }}
+          TARGET_REPO_OWNER: BnB3DAO
+          TARGET_REPO_NAME: test-dst
+          GITHUB_TOKEN: ${{ secrets.DST_ISSUE_TOKEN }}
+        run: |
+          # 读取并处理每条评论
+          cat comments.json | jq -c '.[]' | while read -r comment; do
+            COMMENT_BODY=$(echo $comment | jq -r '.body')
+            
+            # AI 总结部分
+            PAYLOAD=$(jq -n \
+              --arg model "glm-4-flash" \
+              --arg system_content "你是一个专业的总结者，根据提供的文本总结核心内容并生成一个简洁的标题。输出格式为：标题: [标题内容]\n总结: [总结内容]" \
+              --arg user_content "$COMMENT_BODY" \
+              '{
+                model: $model,
+                messages: [
+                  {
+                    role: "system",
+                    content: $system_content
+                  },
+                  {
+                    role: "user",
+                    content: $user_content
+                  }
+                ]
+              }')
+            
+            RESPONSE=$(curl -s -X POST \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $OPENAI_API_KEY" \
+              https://open.bigmodel.cn/api/paas/v4/chat/completions \
+              -d "$PAYLOAD")
+            
+            # 提取标题和摘要
+            SUMMARY=$(echo "$RESPONSE" | jq -r '.choices[0].message.content')
+            TITLE=$(echo "$SUMMARY" | sed -n 's/^标题: *//p' | head -n 1)
+            SUMMARY_CONTENT=$(echo "$SUMMARY" | sed -n 's/^总结: *//p' | head -n 1)
+            
+            # 创建目标仓库的 issue
+            NEW_ISSUE_TITLE="Comment Summary from ${{ github.repository }}: $TITLE"
+            NEW_ISSUE_BODY="Original issue: ${{ steps.fetch-comments.outputs.issue_url }}<br>AI Summary:<br>$SUMMARY_CONTENT<br>Original Comment:<br>$COMMENT_BODY"
+            
+            ISSUE_PAYLOAD=$(jq -n \
+              --arg title "$NEW_ISSUE_TITLE" \
+              --arg body "$NEW_ISSUE_BODY" \
+              '{
+                title: $title,
+                body: $body
+              }')
+            
+            curl -X POST \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/$TARGET_REPO_OWNER/$TARGET_REPO_NAME/issues" \
+              -d "$ISSUE_PAYLOAD"
+            
+            # 添加延迟以避免触发 API 限制
+            sleep 2
+          done
