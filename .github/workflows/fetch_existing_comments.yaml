@@ -46,6 +46,7 @@ jobs:
           # 读取并处理每条评论
           cat comments.json | jq -c '.[]' | while read -r comment; do
             COMMENT_BODY=$(echo $comment | jq -r '.body')
+            COMMENT_URL=$(echo $comment | jq -r '.html_url')
             
             # AI 总结部分
             PAYLOAD=$(jq -n \
@@ -78,8 +79,8 @@ jobs:
             SUMMARY_CONTENT=$(echo "$SUMMARY" | sed -n 's/^总结: *//p' | head -n 1)
             
             # 创建目标仓库的 issue
-            NEW_ISSUE_TITLE="Comment Summary from ${{ github.repository }}: $TITLE"
-            NEW_ISSUE_BODY="Original issue: ${{ steps.fetch-comments.outputs.issue_url }}<br>AI Summary:<br>$SUMMARY_CONTENT<br>Original Comment:<br>$COMMENT_BODY"
+            NEW_ISSUE_TITLE="$TITLE"
+            NEW_ISSUE_BODY="Original comment: $COMMENT_URL<br>AI Summary:<br>$SUMMARY_CONTENT<br>Original Comment:<br>$COMMENT_BODY"
             
             ISSUE_PAYLOAD=$(jq -n \
               --arg title "$NEW_ISSUE_TITLE" \

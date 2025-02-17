@@ -27,6 +27,11 @@ jobs:
             echo "${{ github.event.issue.html_url }}"
             echo "EOF"
           } >> $GITHUB_OUTPUT
+          {
+            echo "comment_url<<EOF"
+            echo "${{ github.event.comment.html_url }}"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Summarize comment and generate title using OpenAI
         id: ai-summary
@@ -115,12 +120,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.DST_ISSUE_TOKEN }}
         run: |
           ISSUE_URL="${{ steps.comment-details.outputs.issue_url }}"
+          COMMENT_URL="${{ steps.comment-details.outputs.comment_url }}"
           AI_TITLE="${{ steps.ai-summary.outputs.ai_title }}"
           AI_SUMMARY="${{ steps.ai-summary.outputs.ai_summary }}"
           COMMENT_BODY="${{ steps.comment-details.outputs.comment_body }}"
 
-          NEW_ISSUE_TITLE="Comment Summary from ${{ github.repository }}: $AI_TITLE"
-          NEW_ISSUE_BODY="Original issue: $ISSUE_URL<br>AI Summary:<br>$AI_SUMMARY<br>Original Comment:<br>$COMMENT_BODY"
+          NEW_ISSUE_TITLE="$AI_TITLE"
+          NEW_ISSUE_BODY="Original comment: $COMMENT_URL<br>AI Summary:<br>$AI_SUMMARY<br>Original Comment:<br>$COMMENT_BODY"
 
           # 使用 jq 构建 issue payload
           ISSUE_PAYLOAD=$(jq -n \
