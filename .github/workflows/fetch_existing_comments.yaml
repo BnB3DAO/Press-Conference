@@ -40,7 +40,7 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.GLM_AI_TOKEN }}
           TARGET_REPO_OWNER: BnB3DAO
-          TARGET_REPO_NAME: test-dst
+          TARGET_REPO_NAME: BnB3DAO-Member
           GITHUB_TOKEN: ${{ secrets.DST_ISSUE_TOKEN }}
         run: |
           # 读取并处理每条评论
