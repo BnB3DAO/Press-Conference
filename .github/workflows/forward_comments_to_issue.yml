@@ -3,11 +3,20 @@ name: Forward Issue Comments to Another Repo with AI Summary
 on:
   issue_comment:
     types: [created]
-    if: github.event.issue.number == 48
 
 jobs:
   forward-comment:
     runs-on: ubuntu-latest
+    if: github.event.issue.number != 48
+    steps:
+      - name: Skip execution
+        run: |
+          echo "Skipping execution as this is not issue #48"
+          exit 0
+
+  process-comment:
+    runs-on: ubuntu-latest
+    if: github.event.issue.number == 48
     steps:
       - name: Get comment details
         id: comment-details
